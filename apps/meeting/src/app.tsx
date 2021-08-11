@@ -9,7 +9,7 @@ import {
   MeetingProvider,
   NotificationProvider,
   darkTheme,
-  GlobalStyles
+  GlobalStyles,
 } from 'amazon-chime-sdk-component-library-react';
 
 import { AppStateProvider, useAppState } from './providers/AppStateProvider';
@@ -66,9 +66,7 @@ const Theme: React.FC = ({ children }) => {
 const MeetingModeSelector: React.FC = () => {
   const { meetingMode } = useAppState();
 
-  return (
-    <Meeting mode={meetingMode} />
-  );
+  return <Meeting mode={meetingMode} />;
 };
 
 export default App;

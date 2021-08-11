@@ -112,4 +112,18 @@ export const StyledContent = styled.div`
       transform: unset;
     }
   }
+
+  .grid-controls {
+    position: absolute;
+    right: 0rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  @media screen and (max-width: 768px) {
+    .grid-controls {
+      position: static;
+      transform: unset;
+    }
+  }
 `;

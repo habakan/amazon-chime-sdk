@@ -4,7 +4,7 @@
 import React from 'react';
 import {
   VideoTileGrid,
-  UserActivityProvider
+  UserActivityProvider,
 } from 'amazon-chime-sdk-component-library-react';
 
 import { StyledLayout, StyledContent } from './Styled';
@@ -15,23 +15,31 @@ import MeetingControls from '../../containers/MeetingControls';
 import useMeetingEndRedirect from '../../hooks/useMeetingEndRedirect';
 import DynamicMeetingControls from '../../containers/DynamicMeetingControls';
 import { MeetingMode } from '../../types';
+import GridControls from '../../containers/GridControls';
+import { VideoGridProvider } from '../../providers/VideoGridProvider';
 
-const MeetingView = (props: { mode: MeetingMode, }) => {
+const MeetingView = (props: { mode: MeetingMode }) => {
   useMeetingEndRedirect();
   const { showNavbar, showRoster } = useNavigation();
+  const { mode } = props;
 
   return (
     <UserActivityProvider>
       <StyledLayout showNav={showNavbar} showRoster={showRoster}>
         <StyledContent>
-          <VideoTileGrid
-            className="videos"
-            noRemoteVideoView={<MeetingDetails />}
-          />
-          {props.mode === MeetingMode.Spectator ?
-            <DynamicMeetingControls /> :
-            <MeetingControls />
-          }
+          <VideoGridProvider>
+            <VideoTileGrid
+              layout="standard"
+              className="videos"
+              noRemoteVideoView={<MeetingDetails />}
+            />
+            <GridControls />
+            {mode === MeetingMode.Spectator ? (
+              <DynamicMeetingControls />
+            ) : (
+              <MeetingControls />
+            )}
+          </VideoGridProvider>
         </StyledContent>
         <NavigationControl />
       </StyledLayout>
