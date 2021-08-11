@@ -9,16 +9,19 @@ import {
   NavbarItem,
   Attendees,
   Eye,
-  SignalStrength
+  SignalStrength,
+  Dialer,
+  Presenter,
 } from 'amazon-chime-sdk-component-library-react';
 
 import { useNavigation } from '../../providers/NavigationProvider';
 import { useAppState } from '../../providers/AppStateProvider';
-import LocalMediaStreamMetrics from '../LocalMediaStreamMetrics';
+import { LocalMediaStreamMetrics } from '../LocalMediaStreamMetrics';
+import { VideoGridMode } from '../../types';
 
 const Navigation = () => {
   const { toggleRoster, closeNavbar } = useNavigation();
-  const { theme, toggleTheme } = useAppState();
+  const { theme, toggleTheme, videoGridMode, setVideoGridMode } = useAppState();
 
   return (
     <Navbar className="nav" flexDirection="column" container>
@@ -29,13 +32,30 @@ const Navigation = () => {
         label="Attendees"
       />
       <NavbarItem
+        icon={
+          videoGridMode === VideoGridMode.GalleryView ? (
+            <Presenter />
+          ) : (
+            <Dialer />
+          )
+        }
+        onClick={(): void => {
+          if (videoGridMode === VideoGridMode.GalleryView) {
+            setVideoGridMode(VideoGridMode.FeaturedView);
+          } else {
+            setVideoGridMode(VideoGridMode.GalleryView);
+          }
+        }}
+        label="Switch View"
+      />
+      <NavbarItem
         icon={<Eye />}
         onClick={toggleTheme}
         label={theme === 'light' ? 'Dark mode' : 'Light mode'}
       />
       <NavbarItem
         icon={<SignalStrength />}
-        onClick={() => {}}
+        onClick={() => { }}
         label="Media metrics"
       >
         <LocalMediaStreamMetrics />

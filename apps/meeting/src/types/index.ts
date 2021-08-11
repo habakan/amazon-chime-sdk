@@ -46,3 +46,8 @@ export enum GridControlMode {
   NextPage,
   PrevPage,
 }
+
+export enum VideoGridMode {
+  GalleryView,
+  FeaturedView,
+}
