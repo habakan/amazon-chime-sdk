@@ -10,14 +10,14 @@ import {
   Attendees,
   Eye,
   SignalStrength,
-  Dialer,
-  Presenter,
 } from 'amazon-chime-sdk-component-library-react';
 
 import { useNavigation } from '../../providers/NavigationProvider';
 import { useAppState } from '../../providers/AppStateProvider';
 import { LocalMediaStreamMetrics } from '../LocalMediaStreamMetrics';
 import { VideoGridMode } from '../../types';
+import GalleryLayout from '../../components/Icons/GalleryLayout';
+import SpeakerLayout from '../../components/Icons/SpeakerLayout';
 
 const Navigation = () => {
   const { toggleRoster, closeNavbar } = useNavigation();
@@ -34,9 +34,9 @@ const Navigation = () => {
       <NavbarItem
         icon={
           videoGridMode === VideoGridMode.GalleryView ? (
-            <Presenter />
+            <SpeakerLayout />
           ) : (
-            <Dialer />
+            <GalleryLayout />
           )
         }
         onClick={(): void => {
@@ -55,7 +55,7 @@ const Navigation = () => {
       />
       <NavbarItem
         icon={<SignalStrength />}
-        onClick={() => { }}
+        onClick={() => {}}
         label="Media metrics"
       >
         <LocalMediaStreamMetrics />
