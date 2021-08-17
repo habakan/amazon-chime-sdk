@@ -5,7 +5,11 @@ import {
   useAudioVideo,
   useRosterState,
 } from 'amazon-chime-sdk-component-library-react';
-import { AudioVideoObserver, VideoSource } from 'amazon-chime-sdk-js';
+import {
+  AudioVideoObserver,
+  VideoDownlinkObserver,
+  VideoSource,
+} from 'amazon-chime-sdk-js';
 import React, {
   createContext,
   useCallback,
@@ -14,6 +18,7 @@ import React, {
   useMemo,
   useReducer,
 } from 'react';
+import { priorityBasedPolicy } from '../../meetingConfig';
 import {
   Controls,
   initialState,
@@ -55,7 +60,7 @@ const VideoGridProvider: React.FC = ({ children }) => {
     }
 
     const observer: AudioVideoObserver = {
-      remoteVideoSourcesDidChange: (videoSources: VideoSource[]) => {
+      remoteVideoSourcesDidChange: (videoSources: VideoSource[]): void => {
         dispatch({
           type: VideoGridAction.UpdateVideoSources,
           payload: { videoSources },
@@ -67,6 +72,37 @@ const VideoGridProvider: React.FC = ({ children }) => {
 
     return (): void => audioVideo.removeObserver(observer);
   }, [audioVideo]);
+
+  useEffect(() => {
+    if (!priorityBasedPolicy || !audioVideo) {
+      return;
+    }
+
+    const observer: VideoDownlinkObserver = {
+      tileWillBePausedByDownlinkPolicy: (tileId: number): void => {
+        const attendeeId = audioVideo.getVideoTile(tileId)?.state().boundAttendeeId;
+        if (attendeeId) {
+          dispatch({
+            type: VideoGridAction.PauseVideoTile,
+            payload: { attendeeId },
+          });
+        }
+      },
+      tileWillBeUnpausedByDownlinkPolicy: (tileId: number): void => {
+        const attendeeId = audioVideo.getVideoTile(tileId)?.state().boundAttendeeId;
+        if (attendeeId) {
+          dispatch({
+            type: VideoGridAction.UnpauseVideoTile,
+            payload: { attendeeId },
+          });
+        }
+      },
+    };
+
+    priorityBasedPolicy.addObserver(observer);
+
+    return (): void => priorityBasedPolicy.removeObserver(observer);
+  }, [audioVideo, state.attendees]);
 
   const zoomIn = useCallback(() => {
     dispatch({ type: VideoGridAction.ZoomIn });

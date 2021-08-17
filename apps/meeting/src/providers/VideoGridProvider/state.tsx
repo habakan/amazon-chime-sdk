@@ -10,6 +10,7 @@ interface AttendeeStatus {
   attendeeId: string;
   name: string;
   videoEnabled: boolean;
+  bandwidthConstrained: boolean;
   // sharingContent: boolean;
 }
 
@@ -46,6 +47,8 @@ export enum VideoGridAction {
   UpdateVideoSources,
   ResetVideoGridState,
   UpdateRoster,
+  PauseVideoTile,
+  UnpauseVideoTile,
   ZoomIn,
   ZoomOut,
   PrevPage,
@@ -68,6 +71,20 @@ type UpdateRoster = {
   type: VideoGridAction.UpdateRoster;
   payload: {
     roster: RosterType;
+  };
+};
+
+type PauseVideoTile = {
+  type: VideoGridAction.PauseVideoTile;
+  payload: {
+    attendeeId: string;
+  };
+};
+
+type UnpauseVideoTile = {
+  type: VideoGridAction.UnpauseVideoTile;
+  payload: {
+    attendeeId: string;
   };
 };
 
@@ -95,6 +112,8 @@ export type Action =
   | UpdateVideoSources
   | ResetVideoGridState
   | UpdateRoster
+  | PauseVideoTile
+  | UnpauseVideoTile
   | ZoomIn
   | ZoomOut
   | PreviousPage
@@ -225,11 +244,42 @@ export function reducer(state: State, { type, payload }: Action): State {
         newAttendees[attendeeId] =
           attendeeId in attendees
             ? attendees[attendeeId]
-            : ({ attendeeId, name, videoEnabled: false } as AttendeeStatus);
+            : ({
+                attendeeId,
+                name,
+                videoEnabled: false,
+                bandwidthConstrained: false,
+              } as AttendeeStatus);
       }
 
       return {
         attendees: newAttendees,
+        availableVideoSources,
+        currentPage,
+        isZoomed,
+        zoomedLevel,
+        zoomedLevelIndex,
+      };
+    }
+    case VideoGridAction.PauseVideoTile: {
+      const { attendeeId } = payload;
+      attendees[attendeeId].bandwidthConstrained = true;
+
+      return {
+        attendees,
+        availableVideoSources,
+        currentPage,
+        isZoomed,
+        zoomedLevel,
+        zoomedLevelIndex,
+      };
+    }
+    case VideoGridAction.UnpauseVideoTile: {
+      const { attendeeId } = payload;
+      attendees[attendeeId].bandwidthConstrained = false;
+
+      return {
+        attendees,
         availableVideoSources,
         currentPage,
         isZoomed,
