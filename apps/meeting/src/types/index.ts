@@ -40,9 +40,7 @@ export enum MeetingMode {
   Attendee,
 }
 
-export enum GridControlMode {
-  ZoomIn,
-  ZoomOut,
+export enum PageControlMode {
   NextPage,
   PrevPage,
 }

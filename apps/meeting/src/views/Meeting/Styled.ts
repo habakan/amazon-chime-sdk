@@ -113,17 +113,17 @@ export const StyledContent = styled.div`
     }
   }
 
-  .grid-controls {
+  .page-control-left {
     position: absolute;
-    right: 0rem;
+    left: 0.5rem;
     top: 50%;
     transform: translateY(-50%);
   }
 
-  @media screen and (max-width: 768px) {
-    .grid-controls {
-      position: static;
-      transform: unset;
-    }
+  .page-control-right {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
   }
 `;

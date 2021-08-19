@@ -14,21 +14,22 @@ import MeetingDetails from '../../containers/MeetingDetails';
 import MeetingControls from '../../containers/MeetingControls';
 import useMeetingEndRedirect from '../../hooks/useMeetingEndRedirect';
 import DynamicMeetingControls from '../../containers/DynamicMeetingControls';
-import { MeetingMode, VideoGridMode } from '../../types';
-import GridControls from '../../containers/GridControls';
+import { MeetingMode, PageControlMode, VideoGridMode } from '../../types';
 import { VideoGridProvider } from '../../providers/VideoGridProvider';
 import { useAppState } from '../../providers/AppStateProvider';
+import PageControl from '../../containers/PageControl';
 
 const MeetingView = (props: { mode: MeetingMode }) => {
   useMeetingEndRedirect();
   const { showNavbar, showRoster } = useNavigation();
   const { mode } = props;
   const { videoGridMode } = useAppState();
+
   return (
     <UserActivityProvider>
-      <StyledLayout showNav={showNavbar} showRoster={showRoster}>
-        <StyledContent>
-          <VideoGridProvider>
+      <VideoGridProvider>
+        <StyledLayout showNav={showNavbar} showRoster={showRoster}>
+          <StyledContent>
             <VideoTileGrid
               layout={
                 videoGridMode === VideoGridMode.GalleryView
@@ -38,16 +39,19 @@ const MeetingView = (props: { mode: MeetingMode }) => {
               className="videos"
               noRemoteVideoView={<MeetingDetails />}
             />
-            <GridControls />
+            <PageControl mode={PageControlMode.PrevPage} />
+            <PageControl mode={PageControlMode.NextPage} />
+
+            {/* <GridControls /> */}
             {mode === MeetingMode.Spectator ? (
               <DynamicMeetingControls />
             ) : (
               <MeetingControls />
             )}
-          </VideoGridProvider>
-        </StyledContent>
-        <NavigationControl />
-      </StyledLayout>
+          </StyledContent>
+          <NavigationControl />
+        </StyledLayout>
+      </VideoGridProvider>
     </UserActivityProvider>
   );
 };
