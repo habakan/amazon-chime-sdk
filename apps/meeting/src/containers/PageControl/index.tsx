@@ -4,13 +4,15 @@ import {
   useUserActivityState,
 } from 'amazon-chime-sdk-component-library-react';
 import React from 'react';
+import { useAppState } from '../../providers/AppStateProvider';
 import { useVideoGridControls } from '../../providers/VideoGridProvider';
-import { PageControlMode } from '../../types';
+import { PageControlMode, VideoGridMode } from '../../types';
 import { StyledControl } from './Styled';
 
 const PageControl = (props: { mode: PageControlMode }) => {
   const { mode } = props;
   const { isUserActive } = useUserActivityState();
+  const { videoGridMode } = useAppState();
   const { prevPage, nextPage } = useVideoGridControls();
 
   const handleClick = (): void => {
@@ -47,6 +49,9 @@ const PageControl = (props: { mode: PageControlMode }) => {
           : 'page-control-right'
       }
       active={!!isUserActive}
+      style={{
+        display: videoGridMode === VideoGridMode.GalleryView ? 'flex' : 'none',
+      }}
     >
       <IconButton
         icon={icon}

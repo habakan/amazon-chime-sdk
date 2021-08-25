@@ -54,8 +54,24 @@ const Navigation = () => {
           }}
           label="Switch View"
         />
-        <NavbarItem icon={<ZoomIn />} onClick={zoomIn} label="Zoom In" />
-        <NavbarItem icon={<ZoomOut />} onClick={zoomOut} label="Zoom Out" />
+        <NavbarItem
+          icon={<ZoomIn />}
+          onClick={zoomIn}
+          label="Zoom In"
+          style={{
+            display:
+              videoGridMode === VideoGridMode.GalleryView ? 'flex' : 'none',
+          }}
+        />
+        <NavbarItem
+          icon={<ZoomOut />}
+          onClick={zoomOut}
+          label="Zoom Out"
+          style={{
+            display:
+              videoGridMode === VideoGridMode.GalleryView ? 'flex' : 'none',
+          }}
+        />
       </Flex>
       <Flex marginTop="auto">
         <NavbarItem
@@ -65,7 +81,7 @@ const Navigation = () => {
         />
         <NavbarItem
           icon={<SignalStrength />}
-          onClick={() => {}}
+          onClick={() => { }}
           label="Media metrics"
         >
           <LocalMediaStreamMetrics />
