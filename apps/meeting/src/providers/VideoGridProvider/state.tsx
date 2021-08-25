@@ -5,14 +5,35 @@ import {
   VideoSource,
 } from 'amazon-chime-sdk-js';
 import { priorityBasedPolicy } from '../../meetingConfig';
+import { VideoGridMode } from '../../types';
 
-interface AttendeeStatus {
+interface AttendeeState {
   attendeeId: string;
   name: string;
   videoEnabled: boolean;
   bandwidthConstrained: boolean;
-  // sharingContent: boolean;
 }
+
+interface GridState {
+  hasLocalVideoTile: boolean;
+  hasLocalContentSharingTile: boolean;
+}
+
+interface PaginationState {
+  currentPage: number;
+  isZoomed: boolean;
+  zoomedLevel: number;
+  zoomedLevelIndex: number;
+}
+
+export type State = {
+  attendeeStates: { [attendeeId: string]: AttendeeState };
+  availableVideoSources: string[];
+  activeSpeakers: string[];
+  viewMode: VideoGridMode;
+  localTileState: GridState;
+  paginationState: PaginationState;
+};
 
 export type RosterAttendeeType = {
   chimeAttendeeId: string;
@@ -31,22 +52,13 @@ export type Controls = {
   nextPage: () => void;
 };
 
-export type State = {
-  // Keep the order of attendees based on Roster
-  attendees: { [attendeeId: string]: AttendeeStatus };
-  // Remote video sources sorted in the order of roster
-  availableVideoSources: string[];
-  // Pagination state
-  currentPage: number;
-  isZoomed: boolean;
-  zoomedLevel: number;
-  zoomedLevelIndex: number;
-};
-
 export enum VideoGridAction {
-  UpdateVideoSources,
   ResetVideoGridState,
-  UpdateRoster,
+  UpdateViewMode,
+  UpdateVideoSources,
+  UpdateActiveSpeakers,
+  UpdateAttendeeStates,
+  UpdateLocalTileState,
   PauseVideoTile,
   UnpauseVideoTile,
   ZoomIn,
@@ -55,6 +67,11 @@ export enum VideoGridAction {
   NextPage,
 }
 
+type ResetVideoGridState = {
+  type: VideoGridAction.ResetVideoGridState;
+  payload?: any;
+};
+
 type UpdateVideoSources = {
   type: VideoGridAction.UpdateVideoSources;
   payload: {
@@ -62,15 +79,32 @@ type UpdateVideoSources = {
   };
 };
 
-type ResetVideoGridState = {
-  type: VideoGridAction.ResetVideoGridState;
-  payload?: any;
+type UpdateActiveSpeakers = {
+  type: VideoGridAction.UpdateActiveSpeakers;
+  payload: {
+    activeSpeakers: string[];
+  };
 };
 
-type UpdateRoster = {
-  type: VideoGridAction.UpdateRoster;
+type UpdateViewMode = {
+  type: VideoGridAction.UpdateViewMode;
+  payload: {
+    videoGridMode: VideoGridMode;
+  };
+};
+
+type UpdateAttendeeStates = {
+  type: VideoGridAction.UpdateAttendeeStates;
   payload: {
     roster: RosterType;
+  };
+};
+
+type UpdateLocalTileState = {
+  type: VideoGridAction.UpdateLocalTileState;
+  payload: {
+    isVideoEnabled: boolean;
+    isLocalUserSharing: boolean;
   };
 };
 
@@ -111,7 +145,10 @@ type NextPage = {
 export type Action =
   | UpdateVideoSources
   | ResetVideoGridState
-  | UpdateRoster
+  | UpdateViewMode
+  | UpdateAttendeeStates
+  | UpdateLocalTileState
+  | UpdateActiveSpeakers
   | PauseVideoTile
   | UnpauseVideoTile
   | ZoomIn
@@ -120,42 +157,70 @@ export type Action =
   | NextPage;
 
 export const initialState: State = {
-  attendees: {},
+  attendeeStates: {},
   availableVideoSources: [],
-  currentPage: 1,
-  isZoomed: false,
-  zoomedLevel: 0,
-  zoomedLevelIndex: 0,
+  activeSpeakers: [],
+  viewMode: VideoGridMode.GalleryView,
+  localTileState: {
+    hasLocalVideoTile: false,
+    hasLocalContentSharingTile: false,
+  },
+  paginationState: {
+    currentPage: 1,
+    isZoomed: false,
+    zoomedLevel: 0,
+    zoomedLevelIndex: 0,
+  },
 };
 
 const zoomedLevels: number[] = [0, 1, 2, 4, 8, 16, 25];
 
 export function reducer(state: State, { type, payload }: Action): State {
-  const { attendees } = state;
+  const { attendeeStates } = state;
   let {
     availableVideoSources,
-    currentPage,
-    isZoomed,
-    zoomedLevel,
-    zoomedLevelIndex,
+    activeSpeakers,
+    viewMode,
+    localTileState,
+    paginationState,
   } = state;
 
-  const updateZoomStatus = (): void => {
+  const updateZoomState = (): void => {
     const size = availableVideoSources.length;
     for (let i = 1; i < zoomedLevels.length - 1; i += 1) {
       if (zoomedLevels[i] === size) {
-        zoomedLevelIndex = i;
+        paginationState.zoomedLevelIndex = i;
       } else if (zoomedLevels[i] < size) {
-        zoomedLevelIndex = i + 1;
+        paginationState.zoomedLevelIndex = i + 1;
       }
     }
-    zoomedLevel = zoomedLevels[zoomedLevelIndex];
+    paginationState.zoomedLevel =
+      zoomedLevels[paginationState.zoomedLevelIndex];
   };
 
   const calculateVideoSourcesToBeRendered = (): string[] => {
-    const left = (currentPage - 1) * zoomedLevel;
-    const right = currentPage * zoomedLevel;
-    return availableVideoSources.slice(left, right);
+    const { currentPage, zoomedLevel } = paginationState;
+
+    if (viewMode === VideoGridMode.GalleryView) {
+      const start = (currentPage - 1) * zoomedLevel;
+      const end = currentPage * zoomedLevel;
+
+      // if (activeSpeakers.length > 0) {
+      //   // To Do: Fix missing attendee
+      //   return [activeSpeakers[0]].concat(
+      //     availableVideoSources.slice(start, end - 1)
+      //   );
+      // }
+      return availableVideoSources.slice(start, end);
+    }
+
+    if (viewMode === VideoGridMode.FeaturedView) {
+      const maxGridSize = 4;
+      // To Do: Prioritize content share
+      return activeSpeakers.slice(0, maxGridSize);
+    }
+
+    return [];
   };
 
   const updateDownlinkPreferences = (): void => {
@@ -182,11 +247,25 @@ export function reducer(state: State, { type, payload }: Action): State {
     case VideoGridAction.ResetVideoGridState: {
       return initialState;
     }
+    case VideoGridAction.UpdateViewMode: {
+      const { videoGridMode } = payload;
+      viewMode = videoGridMode;
+      updateDownlinkPreferences();
+
+      return {
+        attendeeStates,
+        availableVideoSources,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
+      };
+    }
     case VideoGridAction.UpdateVideoSources: {
       const { videoSources } = payload;
 
-      // Reset the `videoEnabled` of all attendees
-      for (const attendee of Object.values(attendees)) {
+      // Reset the `videoEnabled` of all attendeeStates
+      for (const attendee of Object.values(attendeeStates)) {
         attendee.videoEnabled = false;
       }
 
@@ -195,16 +274,16 @@ export function reducer(state: State, { type, payload }: Action): State {
         const { attendee } = videoSource;
         const { attendeeId } = attendee;
 
-        // To do: check if this triggers only by content sharing
-        if (!(attendeeId in attendees)) {
-          attendees[attendeeId] = { attendeeId } as AttendeeStatus;
+        // This condition only triggers by content sharing
+        if (!(attendeeId in attendeeStates)) {
+          attendeeStates[attendeeId] = { attendeeId } as AttendeeState;
         }
-        attendees[attendeeId].videoEnabled = true;
+        attendeeStates[attendeeId].videoEnabled = true;
       }
 
-      // Populate the `availableVideoSources` based on the order of attendees
+      // Populate the `availableVideoSources` based on the order of attendeeStates
       const newAvailableVideoSources: string[] = [];
-      for (const attendee of Object.values(attendees)) {
+      for (const attendee of Object.values(attendeeStates)) {
         if (attendee.videoEnabled) {
           newAvailableVideoSources.push(attendee.attendeeId);
         }
@@ -213,154 +292,191 @@ export function reducer(state: State, { type, payload }: Action): State {
       availableVideoSources = newAvailableVideoSources;
 
       if (availableVideoSources.length === 0) {
-        currentPage = 1;
-        isZoomed = false;
-        zoomedLevel = 0;
-        zoomedLevelIndex = 0;
+        paginationState = {
+          currentPage: 1,
+          isZoomed: false,
+          zoomedLevel: 0,
+          zoomedLevelIndex: 0,
+        };
       } else {
-        if (!isZoomed) {
+        if (!paginationState.isZoomed) {
           // If not manually zoomed in, change the zoomLevel accordingly
-          updateZoomStatus();
+          updateZoomState();
         }
         updateDownlinkPreferences();
       }
-
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
-    case VideoGridAction.UpdateRoster: {
+    case VideoGridAction.UpdateAttendeeStates: {
       const { roster } = payload;
       const attendeeIds = Object.keys(roster);
-      const newAttendees: { [attendeeID: string]: AttendeeStatus } = {};
+      const newAttendeeStates: { [attendeeID: string]: AttendeeState } = {};
 
       for (const attendeeId of attendeeIds) {
-        const { name } = roster[attendeeId];
-        newAttendees[attendeeId] =
-          attendeeId in attendees
-            ? attendees[attendeeId]
-            : ({
-                attendeeId,
-                name,
-                videoEnabled: false,
-                bandwidthConstrained: false,
-              } as AttendeeStatus);
+        const name = roster[attendeeId]?.name || '';
+        if (attendeeId in attendeeStates) {
+          newAttendeeStates[attendeeId] = attendeeStates[attendeeId];
+          // Sometimes the `useRosterState` hook doesn't return `name`
+          // property at the first time, but will return it later
+          newAttendeeStates[attendeeId].name = roster[attendeeId]?.name || '';
+        } else {
+          newAttendeeStates[attendeeId] = {
+            attendeeId,
+            name,
+            videoEnabled: false,
+            bandwidthConstrained: false,
+          } as AttendeeState;
+        }
       }
 
       return {
-        attendees: newAttendees,
+        attendeeStates: newAttendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
+      };
+    }
+    case VideoGridAction.UpdateLocalTileState: {
+      const { isVideoEnabled, isLocalUserSharing } = payload;
+      localTileState.hasLocalVideoTile = isVideoEnabled;
+      localTileState.hasLocalContentSharingTile = isLocalUserSharing;
+
+      return {
+        attendeeStates,
+        availableVideoSources,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
+      };
+    }
+    case VideoGridAction.UpdateActiveSpeakers: {
+      const { activeSpeakers: newActiveSpeakers } = payload;
+      updateDownlinkPreferences();
+
+      return {
+        attendeeStates,
+        availableVideoSources,
+        activeSpeakers: newActiveSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.PauseVideoTile: {
       const { attendeeId } = payload;
-      attendees[attendeeId].bandwidthConstrained = true;
+      attendeeStates[attendeeId].bandwidthConstrained = true;
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.UnpauseVideoTile: {
       const { attendeeId } = payload;
-      attendees[attendeeId].bandwidthConstrained = false;
+      attendeeStates[attendeeId].bandwidthConstrained = false;
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.ZoomIn: {
-      if (zoomedLevelIndex > 1) {
-        zoomedLevelIndex -= 1;
-        zoomedLevel = zoomedLevels[zoomedLevelIndex];
-        isZoomed = true;
+      if (paginationState.zoomedLevelIndex > 1) {
+        paginationState.zoomedLevelIndex -= 1;
+        paginationState.zoomedLevel =
+          zoomedLevels[paginationState.zoomedLevelIndex];
+        paginationState.isZoomed = true;
         updateDownlinkPreferences();
       } else {
         console.debug('Can not zoom in');
       }
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.ZoomOut: {
       if (
-        zoomedLevel < availableVideoSources.length &&
-        zoomedLevelIndex < zoomedLevels.length - 2
+        paginationState.zoomedLevel < availableVideoSources.length &&
+        paginationState.zoomedLevelIndex < zoomedLevels.length - 2
       ) {
-        zoomedLevelIndex += 1;
-        zoomedLevel = zoomedLevels[zoomedLevelIndex];
-        currentPage = 1;
-        isZoomed = true;
+        paginationState.zoomedLevelIndex += 1;
+        paginationState.zoomedLevel =
+          zoomedLevels[paginationState.zoomedLevelIndex];
+        paginationState.currentPage = 1;
+        paginationState.isZoomed = true;
         updateDownlinkPreferences();
       } else {
         console.debug('Can not zoom out');
       }
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.PrevPage: {
-      if (currentPage > 1) {
-        currentPage -= 1;
+      if (paginationState.currentPage > 1) {
+        paginationState.currentPage -= 1;
         updateDownlinkPreferences();
       } else {
         console.debug('Can not prev page');
       }
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     case VideoGridAction.NextPage: {
-      if (zoomedLevel * currentPage < availableVideoSources.length) {
-        currentPage += 1;
+      if (
+        paginationState.zoomedLevel * paginationState.currentPage <
+        availableVideoSources.length
+      ) {
+        paginationState.currentPage += 1;
         updateDownlinkPreferences();
       } else {
         console.debug('Can not next page');
       }
 
       return {
-        attendees,
+        attendeeStates,
         availableVideoSources,
-        currentPage,
-        isZoomed,
-        zoomedLevel,
-        zoomedLevelIndex,
+        activeSpeakers,
+        viewMode,
+        localTileState,
+        paginationState,
       };
     }
     default:

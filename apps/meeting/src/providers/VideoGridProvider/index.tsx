@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {
+  useActiveSpeakersState,
   useAudioVideo,
+  useContentShareState,
+  useLocalVideo,
   useRosterState,
 } from 'amazon-chime-sdk-component-library-react';
 import {
@@ -10,15 +13,9 @@ import {
   VideoDownlinkObserver,
   VideoSource,
 } from 'amazon-chime-sdk-js';
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-} from 'react';
+import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import { priorityBasedPolicy } from '../../meetingConfig';
+import { useAppState } from '../AppStateProvider';
 import {
   Controls,
   initialState,
@@ -34,6 +31,10 @@ const VideoGridProvider: React.FC = ({ children }) => {
   const audioVideo = useAudioVideo();
   const [state, dispatch] = useReducer(reducer, initialState);
   const { roster } = useRosterState();
+  const { videoGridMode } = useAppState();
+  const { isVideoEnabled } = useLocalVideo();
+  const { isLocalUserSharing } = useContentShareState();
+  const activeSpeakers = useActiveSpeakersState();
 
   useEffect(() => {
     if (!audioVideo) {
@@ -41,7 +42,7 @@ const VideoGridProvider: React.FC = ({ children }) => {
     }
 
     dispatch({
-      type: VideoGridAction.UpdateRoster,
+      type: VideoGridAction.UpdateAttendeeStates,
       payload: { roster },
     });
   }, [audioVideo, roster]);
@@ -53,6 +54,19 @@ const VideoGridProvider: React.FC = ({ children }) => {
 
     return (): void => dispatch({ type: VideoGridAction.ResetVideoGridState });
   }, [audioVideo]);
+
+  useEffect(() => {
+    if (!audioVideo) {
+      return;
+    }
+
+    dispatch({
+      type: VideoGridAction.UpdateActiveSpeakers,
+      payload: {
+        activeSpeakers,
+      },
+    });
+  }, [activeSpeakers, audioVideo]);
 
   useEffect(() => {
     if (!audioVideo) {
@@ -102,33 +116,49 @@ const VideoGridProvider: React.FC = ({ children }) => {
     priorityBasedPolicy.addObserver(observer);
 
     return (): void => priorityBasedPolicy.removeObserver(observer);
-  }, [audioVideo, state.attendees]);
+  }, [audioVideo]);
 
-  const zoomIn = useCallback(() => {
-    dispatch({ type: VideoGridAction.ZoomIn });
-  }, []);
+  useEffect(() => {
+    if (!audioVideo) {
+      return;
+    }
 
-  const zoomOut = useCallback(() => {
-    dispatch({ type: VideoGridAction.ZoomOut });
-  }, []);
+    dispatch({
+      type: VideoGridAction.UpdateLocalTileState,
+      payload: {
+        isVideoEnabled,
+        isLocalUserSharing,
+      },
+    });
+  }, [audioVideo, isLocalUserSharing, isVideoEnabled]);
 
-  const prevPage = useCallback(() => {
-    dispatch({ type: VideoGridAction.PrevPage });
-  }, []);
+  useEffect(() => {
+    if (!audioVideo) {
+      return;
+    }
 
-  const nextPage = useCallback(() => {
-    dispatch({ type: VideoGridAction.NextPage });
-  }, []);
+    dispatch({
+      type: VideoGridAction.UpdateViewMode,
+      payload: {
+        videoGridMode,
+      },
+    });
+  }, [audioVideo, videoGridMode]);
 
-  const controls: Controls = useMemo(
-    () => ({
-      zoomIn,
-      zoomOut,
-      prevPage,
-      nextPage,
-    }),
-    [nextPage, prevPage, zoomIn, zoomOut]
-  );
+  const zoomIn = (): void => dispatch({ type: VideoGridAction.ZoomIn });
+
+  const zoomOut = (): void => dispatch({ type: VideoGridAction.ZoomOut });
+
+  const prevPage = (): void => dispatch({ type: VideoGridAction.PrevPage });
+
+  const nextPage = (): void => dispatch({ type: VideoGridAction.NextPage });
+
+  const controls: Controls = {
+    zoomIn,
+    zoomOut,
+    prevPage,
+    nextPage,
+  };
 
   return (
     <VideoGridStateContext.Provider value={state}>
