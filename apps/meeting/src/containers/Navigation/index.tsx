@@ -13,6 +13,7 @@ import {
   Flex,
   ZoomIn,
   ZoomOut,
+  useContentShareState,
 } from 'amazon-chime-sdk-component-library-react';
 
 import { useNavigation } from '../../providers/NavigationProvider';
@@ -26,6 +27,7 @@ import { useVideoGridControls } from '../../providers/VideoGridProvider';
 const Navigation = () => {
   const { toggleRoster, closeNavbar } = useNavigation();
   const { theme, toggleTheme, videoGridMode, setVideoGridMode } = useAppState();
+  const { sharingAttendeeId } = useContentShareState();
   const { zoomIn, zoomOut } = useVideoGridControls();
 
   return (
@@ -52,6 +54,7 @@ const Navigation = () => {
               setVideoGridMode(VideoGridMode.GalleryView);
             }
           }}
+          disabled={!!sharingAttendeeId}
           label="Switch View"
         />
         <NavbarItem
@@ -62,6 +65,7 @@ const Navigation = () => {
             display:
               videoGridMode === VideoGridMode.GalleryView ? 'flex' : 'none',
           }}
+          disabled={!!sharingAttendeeId}
         />
         <NavbarItem
           icon={<ZoomOut />}

@@ -15,6 +15,7 @@ import {
 } from 'amazon-chime-sdk-js';
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import { priorityBasedPolicy } from '../../meetingConfig';
+import { VideoGridMode } from '../../types';
 import { useAppState } from '../AppStateProvider';
 import {
   Controls,
@@ -31,9 +32,9 @@ const VideoGridProvider: React.FC = ({ children }) => {
   const audioVideo = useAudioVideo();
   const [state, dispatch] = useReducer(reducer, initialState);
   const { roster } = useRosterState();
-  const { videoGridMode } = useAppState();
+  const { videoGridMode, setVideoGridMode } = useAppState();
   const { isVideoEnabled } = useLocalVideo();
-  const { isLocalUserSharing } = useContentShareState();
+  const { isLocalUserSharing, sharingAttendeeId } = useContentShareState();
   const activeSpeakers = useActiveSpeakersState();
 
   useEffect(() => {
@@ -144,6 +145,16 @@ const VideoGridProvider: React.FC = ({ children }) => {
       },
     });
   }, [audioVideo, videoGridMode]);
+
+  useEffect(() => {
+    if (!audioVideo) {
+      return;
+    }
+
+    if (sharingAttendeeId && videoGridMode === VideoGridMode.GalleryView) {
+      setVideoGridMode(VideoGridMode.FeaturedView);
+    }
+  }, [audioVideo, setVideoGridMode, sharingAttendeeId, videoGridMode]);
 
   const zoomIn = (): void => dispatch({ type: VideoGridAction.ZoomIn });
 
