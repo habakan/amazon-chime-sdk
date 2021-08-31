@@ -18,6 +18,7 @@ import MessagingService from '../../services/MessagingService';
 import mergeArrayOfObjects from '../../utilities/mergeArrays';
 import routes from '../../constants/routes';
 
+// createContextで独自classを引数に渡すってどういう状況か？
 const ChatMessagingServiceContext = createContext(MessagingService);
 const ChatMessagingState = createContext();
 const ChatChannelState = createContext();
@@ -38,6 +39,7 @@ const MessagingProvider = ({ children }) => {
       .indexOf(createMemberArn(member.userId)) > -1;
   // Messages
   const [messages, setMessages] = useState([]);
+  // messagesに対して、useRefを利用する理由は何か？
   const messagesRef = useRef(messages);
   const channelListRef = useRef(channelList);
   const activeChannelMembershipsRef = useRef(activeChannelMemberships);
@@ -253,6 +255,7 @@ const MessagingProvider = ({ children }) => {
 };
 
 const useChatMessagingService = () => {
+  // ここはなぜcontextで実装している？ 正直、views/channels以外で呼び出すタイミングなさそうじゃないか？
   const context = useContext(ChatMessagingServiceContext);
 
   if (!context) {
@@ -291,5 +294,5 @@ export {
   useChatChannelState,
   useChatMessagingService,
   useChatMessagingState,
-  
+
 };
