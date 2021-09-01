@@ -19,6 +19,7 @@ import mergeArrayOfObjects from '../../utilities/mergeArrays';
 import routes from '../../constants/routes';
 
 // createContextで独自classを引数に渡すってどういう状況か？
+// →特に独自classを渡すこと自体にcreateContextとしての制約などはない。  今回の場合はグローバル変数として渡すということで利用している。
 const ChatMessagingServiceContext = createContext(MessagingService);
 const ChatMessagingState = createContext();
 const ChatChannelState = createContext();
@@ -40,6 +41,13 @@ const MessagingProvider = ({ children }) => {
   // Messages
   const [messages, setMessages] = useState([]);
   // messagesに対して、useRefを利用する理由は何か？
+  /*
+    こちらの記事的には再描画する必要のない値の変更をするためとのこと
+    https://qiita.com/seya/items/6bbfa3f9d489809ccb2c
+    messageRefはどこで参照しているかを確認すると、processChannelMessage()で参照されている。
+      proccessChannelMessageでは最終的に、messages stateを変更する処理をしている
+      また、冒頭部分でresolve()などをしている点で、useRefにはPromiseが入っていると考えられる
+  */
   const messagesRef = useRef(messages);
   const channelListRef = useRef(channelList);
   const activeChannelMembershipsRef = useRef(activeChannelMemberships);
@@ -75,6 +83,7 @@ const MessagingProvider = ({ children }) => {
 
     let isDuplicate = false;
 
+    // messageを追加でfetchするタイミングはあるのか？
     messagesRef.current.forEach((m, i, self) => {
       if ((m.response?.MessageId || m.MessageId) === newMessage.MessageId) {
         console.log('Duplicate message found', newMessage);
@@ -105,6 +114,7 @@ const MessagingProvider = ({ children }) => {
         // Process ChannelMessage
         if (record.Metadata) {
           const metadata = JSON.parse(record.Metadata);
+          // ArnってAWSのArn？　なぜここでArnが出てくるのか？ もしかしたらchannelとmemberをArnで管理しているのかもしれない
           if (metadata.isMeetingInfo && record.Sender.Arn !== createMemberArn(member.userId)) {
             const meetingInfo = JSON.parse(record.Content);
             setMeetingInfo(meetingInfo);
@@ -213,6 +223,8 @@ const MessagingProvider = ({ children }) => {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // おそらくここでmessage周りのfetch処理が走っている？
+    // subscribe内でwebsocketのlistenerが動いているという理解で正しいか？
     messagingService.subscribeToMessageUpdate(messagesProcessor);
     return () => {
       messagingService.unsubscribeFromMessageUpdate(messagesProcessor);
@@ -256,6 +268,7 @@ const MessagingProvider = ({ children }) => {
 
 const useChatMessagingService = () => {
   // ここはなぜcontextで実装している？ 正直、views/channels以外で呼び出すタイミングなさそうじゃないか？
+  // →service周りの参照フローをcontextで統一するためだと考えられる
   const context = useContext(ChatMessagingServiceContext);
 
   if (!context) {
