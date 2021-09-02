@@ -101,6 +101,7 @@ const MessagingProvider = ({ children }) => {
     setMessages(newMessages);
   };
 
+  // messageを受け取ったときのevent callback
   const messagesProcessor = async (message) => {
     const messageType = message?.headers['x-amz-chime-event-type'];
     const record = JSON.parse(message?.payload);
@@ -110,19 +111,23 @@ const MessagingProvider = ({ children }) => {
       case 'CREATE_CHANNEL_MESSAGE':
       case 'REDACT_CHANNEL_MESSAGE':
       case 'UPDATE_CHANNEL_MESSAGE':
+      // なぜ、DELETE_CHANNEL_MESSAGEのときに処理している？ messageが受け取られたときとかそういうmessageTypeはないの？
       case 'DELETE_CHANNEL_MESSAGE':
         // Process ChannelMessage
         if (record.Metadata) {
           const metadata = JSON.parse(record.Metadata);
           // ArnってAWSのArn？　なぜここでArnが出てくるのか？ もしかしたらchannelとmemberをArnで管理しているのかもしれない
+          // userIdをさらにArnで識別して照合している
           if (metadata.isMeetingInfo && record.Sender.Arn !== createMemberArn(member.userId)) {
             const meetingInfo = JSON.parse(record.Content);
             setMeetingInfo(meetingInfo);
           };
         }
         else if (activeChannelRef.current.ChannelArn === record?.ChannelArn) {
+          // 見ているchannelの場合、stateを変更している
           processChannelMessage(record);
         } else {
+          // 見ていないchannelの場合、unReadFlagを立たせている
           const findMatch = unreadChannelsListRef.current.find(
             (chArn) => chArn === record.ChannelArn
           );
@@ -224,7 +229,12 @@ const MessagingProvider = ({ children }) => {
     if (!isAuthenticated) return;
 
     // おそらくここでmessage周りのfetch処理が走っている？
-    // subscribe内でwebsocketのlistenerが動いているという理解で正しいか？
+    /*
+      subscribe内でwebsocketのlistenerが動いているという理解で正しいか？
+      _messageUpdateCallbacksにmessagesProcessorをpushしているのみ
+      ここはmessagesProcessorをcallbackとして設定するのみで、fetchなどはしていない。
+      fetchや、webSocketとしての説奥はconnectでやっていると考えられる
+    */
     messagingService.subscribeToMessageUpdate(messagesProcessor);
     return () => {
       messagingService.unsubscribeFromMessageUpdate(messagesProcessor);

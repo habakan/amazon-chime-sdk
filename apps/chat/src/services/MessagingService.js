@@ -22,6 +22,7 @@ class MessagingService {
     this._messageUpdateCallbacks = [];
   }
 
+  // 型はamazon-chime-sdk-js.MessagingSessionObserver
   messageObserver = {
     messagingSessionDidStart: () => {
       console.log('Messaging Connection started!');
@@ -32,12 +33,19 @@ class MessagingService {
     messagingSessionDidStop: event => {
       console.log('Messaging Connection received DidStop event');
     },
+    // messageを受け取った時にcallbackを走らせる
     messagingSessionDidReceiveMessage: message => {
       console.log('Messaging Connection received message');
       this.publishMessageUpdate(message);
     }
   };
 
+  // memberごとにsessionはるの？ 特定のchannelのみのmessageのevent処理などはできない？
+  /*
+    callbackのほうで制御している。 
+    いずれにせよ見ていないchannelに対しても、未読フラグを立たせないといけない。
+    だからすべてlistenしている。
+  */
   setMessagingEndpoint(member) {
     getMessagingSessionEndpoint()
       .then(async response => {
@@ -56,6 +64,8 @@ class MessagingService {
           this._logger
         );
 
+        // addObserverで、各イベントのCallbackを設定している？
+        // →あっている。 this.messageObsererはaws-chime-sdk.jsで決められたevent処理
         this._session.addObserver(this.messageObserver);
         this._session.start();
       })
