@@ -28,6 +28,7 @@ const MessagingProvider = ({ children }) => {
   const { member, isAuthenticated } = useAuthContext();
   const [messagingService] = useState(() => new MessagingService());
   // Channel related
+  // recordを利用して更新している
   const [activeChannel, setActiveChannel] = useState({});
   const [activeChannelMemberships, setActiveChannelMemberships] = useState([]);
   const activeChannelRef = useRef(activeChannel.ChannelArn);

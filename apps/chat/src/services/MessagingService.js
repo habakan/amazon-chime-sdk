@@ -34,6 +34,22 @@ class MessagingService {
       console.log('Messaging Connection received DidStop event');
     },
     // messageを受け取った時にcallbackを走らせる
+    // message周りの型定義などはないのか？
+    /*
+      amazon-chime-sdk-js.MessagingSessionObserverのmessagingSessionDidReceiveMessageで引数としてもらってきている
+      ./node_modules/amazon-chime-sdk-js/build/message/Message.d.ts
+      export default class Message {
+        readonly type: string;
+        readonly headers: any;
+        readonly payload: string;
+        constructor(type: string, // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/explicit-module-boundary-types
+        headers: any, payload: string);
+      }
+      payloadはjson形式のstringで格納しているっぽい。なんでパースしないのか？
+      ./node_modules/amazon-chime-sdk-js/build/messagingsession/DefaultMessagingSession.js
+      receiveMessageHandler(data)で、messageを作成している
+      json型のHeader情報はjsonData.Headers['x-amz-chime-event-type']に入っていそう？
+    */
     messagingSessionDidReceiveMessage: message => {
       console.log('Messaging Connection received message');
       this.publishMessageUpdate(message);
@@ -67,6 +83,11 @@ class MessagingService {
         // addObserverで、各イベントのCallbackを設定している？
         // →あっている。 this.messageObsererはaws-chime-sdk.jsで決められたevent処理
         this._session.addObserver(this.messageObserver);
+        /*
+          ./node_modules/amazon-chime-sdk-js/build/messagingsession/DefaultMessagingSession.js
+          startConnecting()でwebSocketのコネクションを確立
+          forEachObserverが走っていて、最終的にはmessagingSessionDidStartConnecting()を走らせている
+        */
         this._session.start();
       })
       .catch(err => {
